@@ -1,0 +1,6 @@
+.env
+.venv/
+runtime/jobs/*
+!runtime/jobs/.gitkeep
+__pycache__/
+*.pyc

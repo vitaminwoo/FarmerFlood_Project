@@ -1,0 +1,2 @@
+package kr.co.farmerflood.trigger.provider.live; import static org.assertj.core.api.Assertions.assertThat; import org.junit.jupiter.api.Test;
+class KmaRainfallParserTests {@Test void parsesKmaValues(){assertThat(KmaRainfallParser.millimeters("강수없음")).isZero();assertThat(KmaRainfallParser.millimeters("1.0mm")).isEqualTo(1);assertThat(KmaRainfallParser.millimeters("1.0mm 미만")).isEqualTo(.5);assertThat(KmaRainfallParser.millimeters("30.0~50.0mm")).isEqualTo(40);}}

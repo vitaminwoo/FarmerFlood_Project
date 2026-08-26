@@ -1,0 +1,4 @@
+package kr.co.farmerflood.trigger.provider.mock;
+import java.time.Instant; import java.util.concurrent.atomic.AtomicReference; import kr.co.farmerflood.trigger.domain.RiskLevel; import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty; import org.springframework.stereotype.Component;
+@Component @ConditionalOnProperty(name="app.provider-mode",havingValue="mock",matchIfMissing=true)
+public class MockScenarioStore { private final AtomicReference<State> state=new AtomicReference<>(new State(1,RiskLevel.NORMAL,0,Instant.now())); public State get(){return state.get();} public State update(double w,RiskLevel r,double mm){var n=new State(w,r,mm,Instant.now());state.set(n);return n;} public record State(double waterLevelMeters,RiskLevel riskLevel,double rainfallMm,Instant updatedAt){} }

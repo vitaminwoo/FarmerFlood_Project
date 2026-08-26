@@ -1,0 +1,2 @@
+package kr.co.farmerflood.trigger.service; import kr.co.farmerflood.trigger.domain.AlertEvent; import org.springframework.stereotype.Service;
+@Service public class AlertWorkflow {private final AlertRepository repo;private final MediaPipeline media;public AlertWorkflow(AlertRepository r,MediaPipeline m){repo=r;media=m;}public void start(AlertEvent e){repo.save(e);if(e.productionRequested())media.request(e);}}

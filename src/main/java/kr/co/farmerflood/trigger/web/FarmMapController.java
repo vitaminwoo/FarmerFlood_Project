@@ -1,0 +1,24 @@
+package kr.co.farmerflood.trigger.web;
+
+import java.net.URLEncoder;import java.nio.charset.StandardCharsets;
+import kr.co.farmerflood.trigger.service.*;
+import org.springframework.http.MediaType;import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;import reactor.core.scheduler.Schedulers;
+
+@RestController
+public class FarmMapController {
+    private final FarmMapService farms;private final ChungbukRegionService regions;
+    public FarmMapController(FarmMapService farms,ChungbukRegionService regions){this.farms=farms;this.regions=regions;}
+    @GetMapping(value="/api/mobile/farm-map/parcels",produces=MediaType.APPLICATION_JSON_VALUE)
+    public Mono<String> parcels(@RequestParam String district,@RequestParam String locality,@RequestParam double minLon,@RequestParam double minLat,@RequestParam double maxLon,@RequestParam double maxLat){return Mono.fromCallable(()->farms.parcels(district,locality,minLon,minLat,maxLon,maxLat)).subscribeOn(Schedulers.boundedElastic());}
+    @GetMapping(value="/mobile/farm-map",produces=MediaType.TEXT_HTML_VALUE)
+    public String map(@RequestParam String district,@RequestParam String locality){regions.validate(district,locality);var center=regions.point(district,locality);String d=js(district),l=js(locality);return """
+      <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <style>*{box-sizing:border-box}html,body,#map{height:100%%;margin:0;font-family:system-ui,sans-serif}#map{background:#e9f1ec}.guide{position:absolute;z-index:900;top:14px;left:14px;right:14px;background:#143d2dcc;color:white;padding:13px 16px;border-radius:14px;font-weight:700;box-shadow:0 5px 18px #0003}.sheet{display:none;position:absolute;z-index:1000;left:14px;right:14px;bottom:16px;background:white;border-radius:18px;padding:16px;box-shadow:0 10px 35px #0005}.sheet.show{display:block}.meta{color:#66756e;font-size:13px;margin:5px 0 12px}.confirm{width:100%%;border:0;border-radius:12px;padding:14px;background:#176b43;color:white;font-size:16px;font-weight:800}.empty{position:absolute;z-index:950;inset:45%% 22px auto;background:white;padding:18px;border-radius:14px;text-align:center;color:#66756e}.leaflet-interactive{transition:fill-opacity .15s}</style></head>
+      <body><div id="map"></div><div class="guide">%s %s · 지도에서 내 농경지를 선택하세요</div><div id="empty" class="empty" style="display:none">이 지역의 팜맵 데이터가 아직 적재되지 않았습니다.</div><div id="sheet" class="sheet"><b id="title"></b><div id="meta" class="meta"></div><button class="confirm" onclick="confirmFarm()">이 농경지로 등록</button></div>
+      <script>const district='%s',locality='%s';let selected=null,selectedLayer=null,layerGroup=L.layerGroup();const map=L.map('map',{zoomControl:false}).setView([%f,%f],14);L.control.zoom({position:'bottomright'}).addTo(map);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);layerGroup.addTo(map);
+      function style(){return{color:'#218c5b',weight:1.5,fillColor:'#6ed39d',fillOpacity:.28}}function load(){const b=map.getBounds(),u=`/api/mobile/farm-map/parcels?district=${encodeURIComponent(district)}&locality=${encodeURIComponent(locality)}&minLon=${b.getWest()}&minLat=${b.getSouth()}&maxLon=${b.getEast()}&maxLat=${b.getNorth()}`;fetch(u).then(r=>r.json()).then(g=>{layerGroup.clearLayers();document.getElementById('empty').style.display=g.features.length?'none':'block';L.geoJSON(g,{style,onEachFeature:(f,ly)=>ly.on('click',()=>choose(f,ly))}).addTo(layerGroup)})}function choose(f,ly){if(selectedLayer)selectedLayer.setStyle(style());selected=f;selectedLayer=ly;ly.setStyle({color:'#ff8a00',weight:4,fillColor:'#ffc46b',fillOpacity:.55});document.getElementById('title').textContent=f.properties.crop_type+' · '+Math.round(f.properties.area_sqm||0).toLocaleString()+'㎡';document.getElementById('meta').textContent=f.properties.address+' · PNU '+(f.properties.pnu||'미제공');document.getElementById('sheet').classList.add('show')}function confirmFarm(){if(!selected)return;const payload=JSON.stringify({id:selected.properties.id,pnu:selected.properties.pnu,cropType:selected.properties.crop_type,areaSquareMeters:selected.properties.area_sqm,address:selected.properties.address});if(window.AndroidFarmMap)AndroidFarmMap.onParcelSelected(payload)}map.on('moveend',()=>{clearTimeout(window.loadTimer);window.loadTimer=setTimeout(load,250)});load();</script></body></html>
+      """.formatted(district,locality,d,l,center.latitude(),center.longitude());}
+    private String js(String value){return value.replace("\\","\\\\").replace("'","\\'");}
+}

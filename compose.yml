@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: farmer-flood-postgres
+    environment:
+      POSTGRES_DB: farmer_flood
+      POSTGRES_USER: farmer_flood
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-farmer_flood}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - farmer-flood-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farmer_flood -d farmer_flood"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  farmer-flood-postgres-data:

@@ -1,0 +1,17 @@
+package kr.co.farmerflood.trigger.service;
+import java.time.Instant; import java.util.*; import java.util.concurrent.ConcurrentHashMap;
+import kr.co.farmerflood.trigger.config.AppProperties; import kr.co.farmerflood.trigger.domain.*; import kr.co.farmerflood.trigger.provider.*;
+import org.slf4j.*; import org.springframework.scheduling.annotation.Scheduled; import org.springframework.stereotype.Service;
+@Service public class TriggerEngine {
+ private static final Logger log=LoggerFactory.getLogger(TriggerEngine.class); private final AppProperties p; private final WaterLevelProvider water; private final WeatherForecastProvider weather; private final AlertWorkflow workflow; private final TriggerStateRepository stateRepository;private final MonitoringTargetService targets;private final Map<String,TriggerState> states=new ConcurrentHashMap<>();
+ public TriggerEngine(AppProperties p,WaterLevelProvider w,WeatherForecastProvider f,AlertWorkflow a,TriggerStateRepository stateRepository,MonitoringTargetService targets){this.p=p;water=w;weather=f;workflow=a;this.stateRepository=stateRepository;this.targets=targets;stateRepository.findAll().forEach(s->states.put(s.locationId(),s));p.getLocations().forEach(l->states.putIfAbsent(l.getId(),TriggerState.initial(l.getId())));}
+ @Scheduled(fixedDelayString="${app.poll-delay-ms:600000}") public void scheduledEvaluate(){if(p.isPollingEnabled())evaluateAll();}
+ public Collection<TriggerState> evaluateAll(){targets.locations().forEach(this::evaluate);return states.values();} public Collection<TriggerState> states(){return states.values();}
+ private void evaluate(AppProperties.Location l){TriggerState previous=states.getOrDefault(l.getId(),TriggerState.initial(l.getId()));try{
+  var obs=water.latest(l); if(!obs.riskLevel().atLeast(RiskLevel.ATTENTION)){put(new TriggerState(l.getId(),TriggerState.Phase.NORMAL,obs.riskLevel(),obs.waterLevelMeters(),null,null,null,Instant.now()));return;}
+  if(previous.phase()==TriggerState.Phase.FIRED){put(new TriggerState(l.getId(),TriggerState.Phase.FIRED,obs.riskLevel(),obs.waterLevelMeters(),previous.forecastRainfallMm(),previous.alertId(),null,Instant.now()));return;}
+  var rain=weather.nextHours(l,p.getForecastHours()); if(rain.accumulatedMillimeters()<p.getRainfallThresholdMm()){put(new TriggerState(l.getId(),TriggerState.Phase.ARMED,obs.riskLevel(),obs.waterLevelMeters(),rain.accumulatedMillimeters(),null,null,Instant.now()));return;}
+  String id=UUID.randomUUID().toString();boolean registered=l.getOwnerUserId()!=null&&!l.getOwnerUserId().isBlank();var event=new AlertEvent(id,l.getId(),l.getName(),obs.stationCode(),obs.stationName(),l.getName(),l.getNx(),l.getNy(),obs.waterLevelMeters(),obs.riskLevel(),rain.accumulatedMillimeters(),p.getRainfallThresholdMm(),Instant.now(),l.getOwnerUserId(),registered?l.getId():null,registered,registered?"등록 농경지와 연결되어 영상 제작 후 송신":"연결된 가입 농경지가 없어 영상 제작 하지 않음");put(new TriggerState(l.getId(),TriggerState.Phase.FIRED,obs.riskLevel(),obs.waterLevelMeters(),rain.accumulatedMillimeters(),id,null,Instant.now()));workflow.start(event);
+ }catch(RuntimeException e){log.warn("Trigger evaluation failed for {}: {}",l.getId(),e.getMessage());put(new TriggerState(l.getId(),previous.phase(),previous.riskLevel(),previous.waterLevelMeters(),previous.forecastRainfallMm(),previous.alertId(),e.getMessage(),Instant.now()));}}
+ private void put(TriggerState state){states.put(state.locationId(),state);stateRepository.save(state);}
+}

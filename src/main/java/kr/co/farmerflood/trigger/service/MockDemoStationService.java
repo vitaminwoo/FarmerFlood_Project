@@ -1,0 +1,31 @@
+package kr.co.farmerflood.trigger.service;
+
+import jakarta.annotation.PostConstruct;
+import java.time.*;import java.time.temporal.ChronoUnit;import java.util.*;
+import kr.co.farmerflood.trigger.config.AppProperties;
+import kr.co.farmerflood.trigger.domain.*;
+import kr.co.farmerflood.trigger.persistence.FarmlandEntity;
+import kr.co.farmerflood.trigger.provider.WaterStationCatalogue;
+import org.springframework.stereotype.Service;
+
+@Service
+public class MockDemoStationService {
+    private static final String GOESAN="충청북도 괴산군", CHEONGJU="충청북도 청주시 강내면";
+    private static final WaterThresholds GOESAN_THRESHOLDS=new WaterThresholds(4.2,6.2,7.1,8.5);
+    private final Map<String,State> states=new LinkedHashMap<>();private final AlertWorkflow workflow;private final AppProperties properties;private final FarmlandService farmlands;private final WaterStationCatalogue catalogue;
+    public MockDemoStationService(AlertWorkflow workflow,AppProperties properties,FarmlandService farmlands,WaterStationCatalogue catalogue){this.workflow=workflow;this.properties=properties;this.farmlands=farmlands;this.catalogue=catalogue;Instant now=Instant.now();states.put("MOCK-001",new State("MOCK-001","관측소_mock_1",GOESAN,36.8700,127.8553,76,113,4.2,RiskLevel.ATTENTION,80,false,now));states.put("MOCK-002",new State("MOCK-002","관측소_mock_2",GOESAN,36.8700,127.8553,76,113,4.2,RiskLevel.ATTENTION,50,false,now));states.put("MOCK-003",new State("MOCK-003","관측소_mock_3",GOESAN,36.8700,127.8553,76,113,1.5,RiskLevel.NORMAL,0,false,now));states.put("MOCK-004",new State("MOCK-004","강내면_mock_4",CHEONGJU,36.6229,127.3577,67,106,1.5,RiskLevel.NORMAL,0,false,now));}
+    @PostConstruct void initializeAlerts(){if(properties.isMockAutoTriggerEnabled())states.keySet().forEach(this::evaluate);}
+    public synchronized List<StationSummary> stations(){return states.values().stream().map(this::summary).toList();}
+    public synchronized boolean contains(String code){return states.containsKey(code);}
+    public synchronized StationDetail detail(String code){State s=require(code);return new StationDetail(summary(s),timeline(s));}
+    public synchronized StationDetail trigger(String code){if(!interactive(code))throw new IllegalArgumentException("대화형 mock 관측소가 아닙니다.");State old=require(code);double attention=thresholds(old).attention();states.put(code,new State(code,old.name,old.address,old.latitude,old.longitude,old.nx,old.ny,attention,RiskLevel.ATTENTION,80,old.fired,Instant.now()));evaluate(code);return detail(code);}
+    public synchronized StationDetail normalReturn(String code){if(!interactive(code))throw new IllegalArgumentException("대화형 mock 관측소가 아닙니다.");State old=require(code);states.put(code,new State(code,old.name,old.address,old.latitude,old.longitude,old.nx,old.ny,1.5,RiskLevel.NORMAL,0,false,Instant.now()));return detail(code);}
+    private boolean interactive(String code){return "MOCK-003".equals(code)||"MOCK-004".equals(code);}
+    private void evaluate(String code){State state=require(code);if(!state.riskLevel.atLeast(RiskLevel.ATTENTION)||state.rainfallMm<80||state.fired)return;List<FarmlandEntity> matched="MOCK-004".equals(code)?farmlands.activeIn("청주시","강내면"):List.of();if(matched.isEmpty())createAlert(state,null);else matched.forEach(f->createAlert(state,f));states.put(code,new State(state.code,state.name,state.address,state.latitude,state.longitude,state.nx,state.ny,state.waterLevelMeters,state.riskLevel,state.rainfallMm,true,state.updatedAt));}
+    private void createAlert(State s,FarmlandEntity farm){boolean produce=farm!=null;String locationId=produce?farm.id:s.code;String locationName=produce?farm.name+" · "+farm.address:s.address;workflow.start(new AlertEvent(UUID.randomUUID().toString(),locationId,locationName,s.code,s.name,s.address,s.nx,s.ny,s.waterLevelMeters,s.riskLevel,s.rainfallMm,80,Instant.now(),produce?farm.userId:null,produce?farm.id:null,produce,produce?"등록 농경지와 연결되어 영상 제작 후 송신":"연결된 가입 농경지가 없어 영상 제작 하지 않음"));}
+    private WaterThresholds thresholds(State s){if(!"MOCK-004".equals(s.code))return GOESAN_THRESHOLDS;try{return catalogue.chungbukStations().stream().filter(x->x.stationName().contains("미호강교")).findFirst().map(StationSummary::thresholds).filter(WaterThresholds::complete).orElse(new WaterThresholds(3.5,4.5,5.5,6.5));}catch(RuntimeException e){return new WaterThresholds(3.5,4.5,5.5,6.5);}}
+    private StationSummary summary(State s){return new StationSummary(s.code,s.name,s.address,s.latitude,s.longitude,s.nx,s.ny,s.waterLevelMeters,s.updatedAt,s.riskLevel.label(),thresholds(s));}
+    private RainfallTimeline timeline(State s){Instant issued=Instant.now().truncatedTo(ChronoUnit.HOURS);List<HourlyRainfall> hourly=new ArrayList<>();for(int h=1;h<=24;h++){double mm=h==1?s.rainfallMm:0;hourly.add(new HourlyRainfall(issued.plus(h,ChronoUnit.HOURS),mm==0?"강수없음":String.format("%.1fmm",mm),mm));}return new RainfallTimeline(s.nx,s.ny,24,issued,s.rainfallMm,List.copyOf(hourly));}
+    private State require(String code){State s=states.get(code);if(s==null)throw new IllegalArgumentException("Unknown mock station: "+code);return s;}
+    private record State(String code,String name,String address,double latitude,double longitude,int nx,int ny,double waterLevelMeters,RiskLevel riskLevel,double rainfallMm,boolean fired,Instant updatedAt){}
+}

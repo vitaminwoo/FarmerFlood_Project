@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: trigger-service
+  config:
+    import: optional:file:.env.properties
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/farmer_flood}
+    username: ${DB_USERNAME:farmer_flood}
+    password: ${DB_PASSWORD:farmer_flood}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+management:
+  endpoints.web.exposure.include: health,info
+  health.db.enabled: true
+app:
+  mock-auto-trigger-enabled: ${MOCK_AUTO_TRIGGER_ENABLED:false}
+  provider-mode: ${PROVIDER_MODE:live}
+  polling-enabled: ${POLLING_ENABLED:true}
+  poll-delay-ms: ${POLL_DELAY_MS:600000}
+  rainfall-threshold-mm: ${RAINFALL_THRESHOLD_MM:80}
+  forecast-hours: ${FORECAST_HOURS:24}
+  hrfco:
+    base-url: ${HRFCO_BASE_URL:http://api.hrfco.go.kr}
+    api-key: ${HRFCO_API_KEY:}
+  kma:
+    base-url: ${KMA_BASE_URL:https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0}
+    service-key: ${KMA_SERVICE_KEY:}
+  pipeline:
+    enabled: ${PIPELINE_ENABLED:true}
+    storage-dir: ${PIPELINE_STORAGE_DIR:runtime/media}
+    poll-delay-ms: ${PIPELINE_POLL_DELAY_MS:1000}
+    worker:
+      base-url: ${FLOOD_WORKER_BASE_URL:http://127.0.0.1:8091}
+      farmer-name: ${FLOOD_WORKER_FARMER_NAME:농업인}
+      auto-start: ${FLOOD_WORKER_AUTO_START:true}
+      start-command: ${FLOOD_WORKER_START_COMMAND:services/team-flood/run.sh}
+      startup-timeout-ms: ${FLOOD_WORKER_STARTUP_TIMEOUT_MS:15000}
+    digital-twin:
+      mode: ${DIGITAL_TWIN_MODE:mock}
+      base-url: ${DIGITAL_TWIN_BASE_URL:http://localhost:3000}
+      mock-source-path: ${DIGITAL_TWIN_MOCK_SOURCE:warning_video_agents/mock-input/digital-twin-sample.mp4}
+      mock-completion-delay-ms: ${DIGITAL_TWIN_MOCK_DELAY_MS:2000}
+    agent:
+      base-url: ${AGENT_BASE_URL:http://127.0.0.1:8090}
+      mode: ${AGENT_MODE:mock}
+      farmer-name: ${AGENT_FARMER_NAME:농업인}
+  locations: []

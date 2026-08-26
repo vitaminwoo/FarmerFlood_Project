@@ -1,0 +1,4 @@
+package kr.co.farmerflood.trigger.provider.mock;
+import java.time.Instant; import java.util.List; import kr.co.farmerflood.trigger.domain.*; import kr.co.farmerflood.trigger.provider.WaterStationCatalogue; import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty; import org.springframework.stereotype.Component;
+@Component @ConditionalOnProperty(name="app.provider-mode",havingValue="mock",matchIfMissing=true)
+public class MockStationCatalogue implements WaterStationCatalogue {private final MockScenarioStore store;public MockStationCatalogue(MockScenarioStore s){store=s;}public List<StationSummary> chungbukStations(){var s=store.get();return List.of(new StationSummary("DEMO-001","청주시(미호강교) 데모","충청북도 청주시",36.623,127.35,68,107,s.waterLevelMeters(),s.updatedAt(),s.riskLevel().label(),new WaterThresholds(2d,3d,4d,5d)));}}

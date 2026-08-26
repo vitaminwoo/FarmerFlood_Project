@@ -1,0 +1,15 @@
+package kr.co.farmerflood.trigger.service;
+
+import jakarta.annotation.PostConstruct;import jakarta.annotation.PreDestroy;import java.io.File;import java.net.URI;import java.net.http.*;import java.nio.file.*;import java.time.Duration;
+import kr.co.farmerflood.trigger.config.AppProperties;import org.slf4j.Logger;import org.slf4j.LoggerFactory;import org.springframework.stereotype.Component;
+
+@Component
+public class FloodWorkerProcessManager {
+    private static final Logger log=LoggerFactory.getLogger(FloodWorkerProcessManager.class);
+    private final AppProperties props;private Process process;
+    public FloodWorkerProcessManager(AppProperties p){props=p;}
+    @PostConstruct public void start(){var pipeline=props.getPipeline();var worker=pipeline.getWorker();if(!pipeline.isEnabled()||!worker.isAutoStart()||!isLocal(worker.getBaseUrl()))return;if(healthy(worker.getBaseUrl())){log.info("Team flood worker already running at {}",worker.getBaseUrl());return;}try{Path project=Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();Path command=project.resolve(worker.getStartCommand()).normalize();if(!command.startsWith(project)||!Files.isExecutable(command))throw new IllegalStateException("Worker start command is not executable: "+command);Path logPath=project.resolve("runtime/flood-worker.log");Files.createDirectories(logPath.getParent());process=new ProcessBuilder(command.toString()).directory(project.toFile()).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.appendTo(logPath.toFile())).start();long deadline=System.currentTimeMillis()+worker.getStartupTimeoutMs();while(System.currentTimeMillis()<deadline){if(healthy(worker.getBaseUrl())){log.info("Team flood worker auto-started (pid={}, log={})",process.pid(),logPath);return;}if(!process.isAlive())throw new IllegalStateException("Worker exited with code "+process.exitValue()+". Check "+logPath);Thread.sleep(250);}throw new IllegalStateException("Worker startup timed out. Check "+logPath);}catch(Exception e){if(e instanceof InterruptedException)Thread.currentThread().interrupt();throw new IllegalStateException("팀 flood worker 자동 시작 실패: "+e.getMessage(),e);}}
+    @PreDestroy public void stop(){if(process!=null&&process.isAlive()){log.info("Stopping auto-started team flood worker (pid={})",process.pid());process.destroy();try{if(!process.waitFor(5,java.util.concurrent.TimeUnit.SECONDS))process.destroyForcibly();}catch(InterruptedException e){Thread.currentThread().interrupt();}}}
+    private boolean healthy(String base){try{HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(1)).build();HttpRequest req=HttpRequest.newBuilder(URI.create(base.replaceAll("/$","")+"/health")).timeout(Duration.ofSeconds(2)).GET().build();return client.send(req,HttpResponse.BodyHandlers.discarding()).statusCode()==200;}catch(Exception e){return false;}}
+    private boolean isLocal(String url){try{String host=URI.create(url).getHost();return "127.0.0.1".equals(host)||"localhost".equalsIgnoreCase(host)||"::1".equals(host);}catch(Exception e){return false;}}
+}
