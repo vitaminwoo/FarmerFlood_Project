@@ -2,5 +2,10 @@
 .venv/
 runtime/jobs/*
 !runtime/jobs/.gitkeep
+runtime_assets/v23/**
+!runtime_assets/v23/README.md
+output/guidance_v23/
+output/personalized_visuals/
 __pycache__/
 *.pyc
+*.blend1

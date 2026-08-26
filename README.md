@@ -298,14 +298,21 @@ mock 1은 관심/80mm, mock 2는 관심/50mm, mock 3은 괴산군 수동 검증�
 
 ## 경고 영상 제작과 저장 정책
 
-처리 순서:
+기본 V9 처리 순서:
 
 ```text
 트리거 → 컨텍스트 → 대본 Agent → 안전성 검토 Agent → 시각 자료
        → 디지털 트윈 원본 확보 → OpenAI TTS → 자막·영상 합성 → 최종 검증
 ```
 
-Spring은 `services/team-flood`의 팀 V9 Worker만 호출합니다. 기존 `warning_video_agents`는 참고·회귀용으로 보존하지만 연결은 끊겨 있습니다. 팀 원본에서 통합에 필요한 최소 변경 사항은 `services/team-flood/UPSTREAM.md`에 기록합니다.
+Spring은 `services/team-flood`의 통합 Worker를 호출하며 기본값은 V23 사전 렌더 자산 기반 4-Agent 경로입니다. 현재 upstream은 오송 데모 필지·사용자 3쌍만 제공하므로 MVP 기본 프로필은 화면과 같은 `OSONG-FIELD-DEMO-003`/`USER-DEMO-003`이고, 원래 FarmerFlood 사용자·농지 ID는 이벤트 metadata에 별도로 보존됩니다. 실제 등록 농지별 V23 자산이 준비되면 이 데모 프로필 매핑을 제거해야 합니다. V23 자산이 없을 때는 기존 V9으로 조용히 후퇴하지 않고 요청을 실패시킵니다. 기존 `warning_video_agents`는 참고·회귀용으로 보존하지만 연결은 끊겨 있습니다. 원본 provenance와 통합 변경은 `services/team-flood/UPSTREAM.md`에 기록합니다.
+
+V23 처리 순서:
+
+```text
+검증된 트리거 이벤트 → 필지 소유권 확인 → 대본 Agent → 병렬 TTS Agent
+  → 필지별 사전 렌더 자산 선택·합성 Agent → 최종 80초 합성 Agent
+```
 
 ```text
 services/team-flood/runtime/

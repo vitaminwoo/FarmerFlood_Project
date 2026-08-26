@@ -36,6 +36,10 @@ app:
     worker:
       base-url: ${FLOOD_WORKER_BASE_URL:http://127.0.0.1:8091}
       farmer-name: ${FLOOD_WORKER_FARMER_NAME:농업인}
+      workflow-version: ${FLOOD_WORKER_WORKFLOW_VERSION:v23}
+      scenario-version: ${FLOOD_WORKER_SCENARIO_VERSION:caution}
+      v23-field-profile-id: ${FLOOD_WORKER_V23_FIELD_PROFILE_ID:OSONG-FIELD-DEMO-003}
+      v23-profile-user-id: ${FLOOD_WORKER_V23_PROFILE_USER_ID:USER-DEMO-003}
       auto-start: ${FLOOD_WORKER_AUTO_START:true}
       start-command: ${FLOOD_WORKER_START_COMMAND:services/team-flood/run.sh}
       startup-timeout-ms: ${FLOOD_WORKER_STARTUP_TIMEOUT_MS:15000}

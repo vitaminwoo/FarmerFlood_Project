@@ -87,11 +87,17 @@ public class AppProperties {
     }
     public static class Worker {
         @NotBlank private String baseUrl = "http://127.0.0.1:8091", farmerName = "농업인";
+        @NotBlank private String workflowVersion = "v23", scenarioVersion = "caution";
+        @NotBlank private String v23FieldProfileId = "OSONG-FIELD-DEMO-003", v23ProfileUserId = "USER-DEMO-003";
         private boolean autoStart = true;
         @NotBlank private String startCommand = "services/team-flood/run.sh";
         @Positive private long startupTimeoutMs = 15_000;
         public String getBaseUrl() { return baseUrl; } public void setBaseUrl(String v) { baseUrl = v; }
         public String getFarmerName() { return farmerName; } public void setFarmerName(String v) { farmerName = v; }
+        public String getWorkflowVersion() { return workflowVersion; } public void setWorkflowVersion(String v) { workflowVersion = v; }
+        public String getScenarioVersion() { return scenarioVersion; } public void setScenarioVersion(String v) { scenarioVersion = v; }
+        public String getV23FieldProfileId() { return v23FieldProfileId; } public void setV23FieldProfileId(String v) { v23FieldProfileId = v; }
+        public String getV23ProfileUserId() { return v23ProfileUserId; } public void setV23ProfileUserId(String v) { v23ProfileUserId = v; }
         public boolean isAutoStart() { return autoStart; } public void setAutoStart(boolean v) { autoStart = v; }
         public String getStartCommand() { return startCommand; } public void setStartCommand(String v) { startCommand = v; }
         public long getStartupTimeoutMs() { return startupTimeoutMs; } public void setStartupTimeoutMs(long v) { startupTimeoutMs = v; }
