@@ -1,5 +1,6 @@
 .env
 .venv/
+.cache/
 runtime/jobs/*
 !runtime/jobs/.gitkeep
 runtime_assets/v23/**
