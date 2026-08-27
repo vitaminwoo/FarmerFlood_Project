@@ -29,6 +29,10 @@ public class MonitoringTargetService {
             Map<String, FarmlandEntity> farmlandMap = new HashMap<>();
             FarmlandRecipientSelector.onePerUser(farmlands.findByActiveTrue()).forEach(f -> farmlandMap.put(f.id, f));
             for (var link : links.findByActiveTrueAndPriorityOrder(1)) {
+                if (link.stationCode == null || link.stationCode.startsWith("MOCK-")) {
+                    log.warn("Skipping invalid live-monitoring station link: farmland={}, station={}", link.farmlandId, link.stationCode);
+                    continue;
+                }
                 var farm = farmlandMap.get(link.farmlandId);
                 var station = stationMap.get(link.stationCode);
                 if (farm == null || station == null || !station.thresholds().complete()) continue;
