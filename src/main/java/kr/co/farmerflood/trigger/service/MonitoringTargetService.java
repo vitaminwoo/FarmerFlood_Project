@@ -27,7 +27,7 @@ public class MonitoringTargetService {
             Map<String, StationSummary> stationMap = new HashMap<>();
             catalogue.chungbukStations().forEach(s -> stationMap.put(s.stationCode(), s));
             Map<String, FarmlandEntity> farmlandMap = new HashMap<>();
-            farmlands.findByActiveTrue().forEach(f -> farmlandMap.put(f.id, f));
+            FarmlandRecipientSelector.onePerUser(farmlands.findByActiveTrue()).forEach(f -> farmlandMap.put(f.id, f));
             for (var link : links.findByActiveTrueAndPriorityOrder(1)) {
                 var farm = farmlandMap.get(link.farmlandId);
                 var station = stationMap.get(link.stationCode);

@@ -15,7 +15,7 @@ public class AppProperties {
     private boolean pollingEnabled = true;
     private boolean mockAutoTriggerEnabled = false;
     @Positive private long pollDelayMs = 600_000;
-    @Positive private double rainfallThresholdMm = 80;
+    @Positive private double rainfallThresholdMm = 35;
     @Positive private int forecastHours = 24;
     @Valid private Remote hrfco = new Remote();
     @Valid private Remote kma = new Remote();

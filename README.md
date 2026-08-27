@@ -6,7 +6,7 @@
 
 - 한강홍수통제소 충북 관측소의 수위·관심/주의/경계/심각 기준 조회
 - 기상청 단기예보의 향후 24시간 강수량 합산
-- `관심 이상 → 24시간 예상강수 80mm 이상` 순차 트리거 및 최초 1회 발화
+- `관심 이상 → 24시간 예상강수 35mm 이상` 순차 트리거 및 최초 1회 발화
 - 공식 충북 팜맵 Polygon 지도 선택, 사용자 농경지 경계·PNU·면적 등록
 - 농경지별 실제 인근 관측소 최대 3개 연결과 강내면 시연용 mock_4 연결
 - PostgreSQL에 알림, 트리거 상태, 영상 제작 작업, 사용자·농경지·관측소 연결 영속화
@@ -158,6 +158,10 @@ docker compose stop postgres
 # 특정 지역만 빠르게 적재
 .farmmap-venv/bin/python scripts/import_farmmap.py \
   /absolute/path/to/충청북도_팜맵.zip --district 청주시 --locality 강내면
+
+# 압축을 풀어 받은 Shapefile 세트도 .shp 경로로 바로 적재 가능
+.farmmap-venv/bin/python scripts/import_farmmap.py \
+  /absolute/path/to/2025_충청북도_보은군.shp --district 보은군 --locality 속리산면
 ```
 
 저장 필드는 원본 식별자, UID, PNU, 작물 분류, 면적, 전체 주소, 시·군, 읍·면·동, 기준연도, 실제 Polygon입니다. 화면은 현재 지도 경계(`bbox`) 안의 도형만 GeoJSON으로 조회하여 전체 데이터를 한 번에 전송하지 않습니다.

@@ -21,7 +21,7 @@ app:
   provider-mode: ${PROVIDER_MODE:live}
   polling-enabled: ${POLLING_ENABLED:true}
   poll-delay-ms: ${POLL_DELAY_MS:600000}
-  rainfall-threshold-mm: ${RAINFALL_THRESHOLD_MM:80}
+  rainfall-threshold-mm: ${RAINFALL_THRESHOLD_MM:35}
   forecast-hours: ${FORECAST_HOURS:24}
   hrfco:
     base-url: ${HRFCO_BASE_URL:http://api.hrfco.go.kr}

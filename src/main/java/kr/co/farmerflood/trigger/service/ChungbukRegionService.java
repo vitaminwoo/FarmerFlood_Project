@@ -23,7 +23,11 @@ public class ChungbukRegionService {
     }
     private List<String> list(String csv){return List.of(csv.split(","));}
     public RegionView view(){return new RegionView("충청북도",localities);}
-    public Point point(String district,String locality){if("청주시".equals(district)&&"강내면".equals(locality))return new Point(36.6229,127.3577);return Optional.ofNullable(centers.get(district)).orElseThrow(()->new IllegalArgumentException("지원하지 않는 충북 시·군입니다."));}
+    public Point point(String district,String locality){
+        if("청주시".equals(district)&&"강내면".equals(locality))return new Point(36.6229,127.3577);
+        if("보은군".equals(district)&&"속리산면".equals(locality))return new Point(36.5564,127.7806);
+        return Optional.ofNullable(centers.get(district)).orElseThrow(()->new IllegalArgumentException("지원하지 않는 충북 시·군입니다."));
+    }
     public void validate(String district,String locality){if(!localities.getOrDefault(district,List.of()).contains(locality))throw new IllegalArgumentException("지원하지 않는 읍·면·동입니다.");}
     public record Point(double latitude,double longitude){}
     public record RegionView(String province,Map<String,List<String>> districts){}

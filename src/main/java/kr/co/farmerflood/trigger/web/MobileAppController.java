@@ -3,7 +3,7 @@ import jakarta.validation.Valid;import jakarta.validation.constraints.*;import j
 @RestController @RequestMapping("/api/mobile") public class MobileAppController {
  private final MobileAppService app;private final ChungbukRegionService regions;public MobileAppController(MobileAppService a,ChungbukRegionService r){app=a;regions=r;}
  @GetMapping("/regions")public ChungbukRegionService.RegionView regions(){return regions.view();}
- @PostMapping("/auth/signup")@ResponseStatus(HttpStatus.CREATED)public Mono<MobileAppService.SessionView> signup(@Valid @RequestBody Signup r){return blocking(()->app.signup(r.name(),r.phone(),r.district(),r.locality(),r.parcelId()));}
+ @PostMapping("/auth/signup")@ResponseStatus(HttpStatus.CREATED)public Mono<MobileAppService.SessionView> signup(@Valid @RequestBody Signup r){return blocking(()->app.signup(r.name(),r.phone(),r.district(),r.locality(),r.selectedParcelIds()));}
  @PostMapping("/auth/login")public Mono<MobileAppService.SessionView> login(@Valid @RequestBody Login r){return blocking(()->app.login(r.name(),r.phone()));}
  @PostMapping("/auth/guardian/signup")@ResponseStatus(HttpStatus.CREATED)public Mono<MobileAppService.SessionView> guardianSignup(@Valid @RequestBody GuardianAuth r){return blocking(()->app.guardianSignup(r.guardianName(),r.farmerName(),r.farmerPhone()));}
  @PostMapping("/auth/guardian/login")public Mono<MobileAppService.SessionView> guardianLogin(@Valid @RequestBody GuardianAuth r){return blocking(()->app.guardianLogin(r.guardianName(),r.farmerName(),r.farmerPhone()));}
@@ -13,7 +13,12 @@ import jakarta.validation.Valid;import jakarta.validation.constraints.*;import j
  @DeleteMapping("/me")@ResponseStatus(HttpStatus.NO_CONTENT)public Mono<Void> withdraw(@RequestHeader("Authorization")String auth){return blocking(()->{app.withdraw(token(auth));return true;}).then();}
  private <T> Mono<T> blocking(java.util.concurrent.Callable<T> task){return Mono.fromCallable(task).subscribeOn(Schedulers.boundedElastic());}
  private String token(String value){if(value==null||!value.startsWith("Bearer "))throw new SecurityException("로그인이 필요합니다.");return value.substring(7);}
- public record Signup(@NotBlank String name,@Pattern(regexp="[0-9 -]{10,15}")String phone,@NotBlank String district,@NotBlank String locality,@NotBlank String parcelId){}
+ public record Signup(@NotBlank String name,@Pattern(regexp="[0-9 -]{10,15}")String phone,@NotBlank String district,@NotBlank String locality,String parcelId,List<String> parcelIds){
+  public List<String> selectedParcelIds(){
+   if(parcelIds!=null&&!parcelIds.isEmpty())return parcelIds;
+   return parcelId==null||parcelId.isBlank()?List.of():List.of(parcelId);
+  }
+ }
  public record Login(@NotBlank String name,@Pattern(regexp="[0-9 -]{10,15}")String phone){}
  public record GuardianAuth(@NotBlank String guardianName,@NotBlank String farmerName,@Pattern(regexp="[0-9 -]{10,15}")String farmerPhone){}
 }

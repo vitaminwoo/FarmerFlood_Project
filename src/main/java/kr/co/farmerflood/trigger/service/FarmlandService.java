@@ -60,6 +60,7 @@ public class FarmlandService {
 
     private void linkNearest(FarmlandEntity farm){
         if("청주시".equals(farm.district)&&"강내면".equals(farm.locality)){FarmlandStationEntity demo=new FarmlandStationEntity();demo.id=UUID.randomUUID().toString();demo.farmlandId=farm.id;demo.stationCode="MOCK-004";demo.stationName="강내면_mock_4 (시연)";demo.stationLatitude=36.6229;demo.stationLongitude=127.3577;demo.distanceMeters=distance(farm.latitude,farm.longitude,demo.stationLatitude,demo.stationLongitude);demo.priorityOrder=0;demo.active=true;demo.linkedAt=Instant.now();links.save(demo);}
+        if("보은군".equals(farm.district)&&"속리산면".equals(farm.locality)){FarmlandStationEntity demo=new FarmlandStationEntity();demo.id=UUID.randomUUID().toString();demo.farmlandId=farm.id;demo.stationCode="MOCK-005";demo.stationName="속리산면_mock_5 (시연)";demo.stationLatitude=36.5564;demo.stationLongitude=127.7806;demo.distanceMeters=distance(farm.latitude,farm.longitude,demo.stationLatitude,demo.stationLongitude);demo.priorityOrder=0;demo.active=true;demo.linkedAt=Instant.now();links.save(demo);}
         List<StationDistance> nearest=stations.chungbukStations().stream().filter(s->Double.isFinite(s.latitude())&&Double.isFinite(s.longitude())&&s.thresholds().complete())
             .map(s->new StationDistance(s,distance(farm.latitude,farm.longitude,s.latitude(),s.longitude())))
             .filter(x->x.meters<=50_000).sorted(Comparator.comparingDouble(x->x.meters)).limit(3).toList();
