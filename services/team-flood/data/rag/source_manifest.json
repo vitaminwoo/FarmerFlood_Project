@@ -1,0 +1,12 @@
+{
+  "purpose": "대본 생성 Agent용 공식 호우 행동요령 RAG 원본 데이터",
+  "sources": [
+    {"source_id":"MOIS-LIFE","original_name":"[국민행동요령] 3. 호우태풍_인명.pdf","stored_name":"01_heavy-rain-typhoon_life-safety.pdf","authority":"국민행동요령"},
+    {"source_id":"MOIS-THREE","original_name":"[국민행동요령] 4. 호우태풍_3대.pdf","stored_name":"02_heavy-rain-typhoon_three-principles.pdf","authority":"국민행동요령"},
+    {"source_id":"MOIS-MANUAL","original_name":"호우 국민행동요령 매뉴얼.pdf","stored_name":"03_heavy-rain_public-action-manual.pdf","authority":"국민행동요령"},
+    {"source_id":"MOIS-ELDERLY","original_name":"[국민행동요령] 1.어르신.pdf","stored_name":"04_heavy-rain_elderly.pdf","authority":"국민행동요령"},
+    {"source_id":"KMA-GUIDE","original_name":"호우 행동요령_기상청.pdf","stored_name":"05_heavy-rain_kma.pdf","authority":"기상청"},
+    {"source_id":"RDA-2011","original_name":"2011년도여름철농업재해대책(농촌진흥청).hwp","stored_name":"06_2011_summer_agricultural-disaster-measures_rda.hwp","authority":"농촌진흥청"},
+    {"source_id":"RDA-2026","original_name":"주말장맛비_예보_농작물농업시설물피해예방관리당부.pdf","stored_name":"07_weekend-monsoon_crop-facility_prevention.pdf","authority":"농촌진흥청"}
+  ]
+}

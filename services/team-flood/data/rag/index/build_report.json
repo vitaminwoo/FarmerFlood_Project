@@ -1,0 +1,70 @@
+{
+  "database": "/Users/minwoo_park/Projects/FarmerFlood_Project/services/team-flood/data/rag/index/guidance.sqlite3",
+  "document_count": 7,
+  "chunk_count": 23,
+  "documents": [
+    {
+      "source_id": "MOIS-LIFE",
+      "original_name": "[국민행동요령] 3. 호우태풍_인명.pdf",
+      "stored_name": "01_heavy-rain-typhoon_life-safety.pdf",
+      "authority": "국민행동요령",
+      "sha256": "45f45464fff1915af96a82b58d915fb0435fa55f1cf3e9f4974a736b8305bb5b",
+      "extraction_status": "indexed",
+      "chunk_count": 1
+    },
+    {
+      "source_id": "MOIS-THREE",
+      "original_name": "[국민행동요령] 4. 호우태풍_3대.pdf",
+      "stored_name": "02_heavy-rain-typhoon_three-principles.pdf",
+      "authority": "국민행동요령",
+      "sha256": "a752a1be9b3286ed9d1110392cc1fed8a06c3839bd70b58ca27970b8d500dac6",
+      "extraction_status": "preserved_no_searchable_text",
+      "chunk_count": 0
+    },
+    {
+      "source_id": "MOIS-MANUAL",
+      "original_name": "호우 국민행동요령 매뉴얼.pdf",
+      "stored_name": "03_heavy-rain_public-action-manual.pdf",
+      "authority": "국민행동요령",
+      "sha256": "0c618f17d085831dffee90baf9d189f9469b7004b07d0ba73b9b4ee7cfb57db9",
+      "extraction_status": "indexed",
+      "chunk_count": 7
+    },
+    {
+      "source_id": "MOIS-ELDERLY",
+      "original_name": "[국민행동요령] 1.어르신.pdf",
+      "stored_name": "04_heavy-rain_elderly.pdf",
+      "authority": "국민행동요령",
+      "sha256": "8899a7f06e46dc32e86d502017243243e98cd1aed76dbfd8cc2eb3376d9976f6",
+      "extraction_status": "preserved_no_searchable_text",
+      "chunk_count": 0
+    },
+    {
+      "source_id": "KMA-GUIDE",
+      "original_name": "호우 행동요령_기상청.pdf",
+      "stored_name": "05_heavy-rain_kma.pdf",
+      "authority": "기상청",
+      "sha256": "47b6b8eeddb3706da3782e7453a1d863dc59dbe091129b5e46904e7624904fc2",
+      "extraction_status": "indexed",
+      "chunk_count": 9
+    },
+    {
+      "source_id": "RDA-2011",
+      "original_name": "2011년도여름철농업재해대책(농촌진흥청).hwp",
+      "stored_name": "06_2011_summer_agricultural-disaster-measures_rda.hwp",
+      "authority": "농촌진흥청",
+      "sha256": "ed0df7a7925353f16026bf4d39ed2f354a57508bcb70a9f82809ed3479d6bebb",
+      "extraction_status": "preserved_no_searchable_text",
+      "chunk_count": 0
+    },
+    {
+      "source_id": "RDA-2026",
+      "original_name": "주말장맛비_예보_농작물농업시설물피해예방관리당부.pdf",
+      "stored_name": "07_weekend-monsoon_crop-facility_prevention.pdf",
+      "authority": "농촌진흥청",
+      "sha256": "29404e93b20790e88f2ad9bfaef2f30be4b0a1ce532f99bec1f79f0e86a41bbc",
+      "extraction_status": "indexed",
+      "chunk_count": 6
+    }
+  ]
+}

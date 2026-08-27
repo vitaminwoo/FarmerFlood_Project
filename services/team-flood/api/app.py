@@ -331,13 +331,14 @@ def v23_event(request: WorkflowRequest) -> dict:
             "farmer_name": request.farmer_name,
             "source_user_id": request.user_id,
             "source_farmland_id": request.farmland_id,
-            "visual_profile_mode": "configured_v23_demo_profile" if request.v23_field_profile_id else "native_v23_registry",
+            "visual_profile_mode": "region_shared_sokrisan_base" if "속리산면" in request.address else ("configured_v23_demo_profile" if request.v23_field_profile_id else "native_v23_registry"),
         },
     }
 
 
 def v23_asset_selection_key(request: WorkflowRequest) -> str:
-    identity = f"v23-assets-1.0.0:{effective_v23_field_id(request)}:{request.scenario_version}"
+    visual_key = "KR-CHUNGBUK-BOEUN-SOKRISAN" if "속리산면" in request.address else effective_v23_field_id(request)
+    identity = f"v23-assets-1.0.0:{visual_key}:{request.scenario_version}"
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
@@ -352,9 +353,14 @@ def effective_v23_user_id(request: WorkflowRequest) -> str | None:
 def v23_assets_ready(request: WorkflowRequest) -> bool:
     try:
         catalog = json.loads((SERVICE_ROOT / "config" / "runtime_assets_v23.json").read_text(encoding="utf-8"))
-        selection = catalog["selection_by_field_id"][effective_v23_field_id(request)]
         if request.scenario_version != "caution":
             return False
+        root = Path(os.getenv("V23_ASSET_ROOT", SERVICE_ROOT / "runtime_assets" / "v23"))
+        if "속리산면" in request.address:
+            region = catalog["region_shared_visuals"]["KR-CHUNGBUK-BOEUN-SOKRISAN"]
+            item = next(item for item in catalog["assets"] if item["asset_id"] == region["asset"])
+            return (root / item["relative_path"]).is_file()
+        selection = catalog["selection_by_field_id"][effective_v23_field_id(request)]
         asset_ids = {
             catalog["shared"]["common_background"],
             catalog["shared"]["shelter_flood"],
@@ -364,7 +370,6 @@ def v23_assets_ready(request: WorkflowRequest) -> bool:
             selection["field_flood"],
         }
         relative_paths = {item["asset_id"]: item["relative_path"] for item in catalog["assets"]}
-        root = Path(os.getenv("V23_ASSET_ROOT", SERVICE_ROOT / "runtime_assets" / "v23"))
         return all((root / relative_paths[asset_id]).is_file() for asset_id in asset_ids)
     except (OSError, KeyError, TypeError, json.JSONDecodeError):
         return False

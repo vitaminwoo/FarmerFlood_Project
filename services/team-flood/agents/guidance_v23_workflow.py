@@ -15,14 +15,16 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
 from openai import AsyncOpenAI
-from PIL import Image, ImageDraw, ImageFont
 from typing_extensions import TypedDict
 
 import runtime_utils
-from runtime_config import ROOT, blender_binary, font_path, output_root
+from runtime_config import ROOT, blender_binary, output_root
 from v23_event_contract import load_and_validate_event, validate_event
 from v23_field_registry import FieldRegistry
+from guidance_rag import compact_citations, dump_retrieval, retrieve_guidance, select_source_sentence
+from guidance_slide_template import SLIDE_DESIGN_SYSTEM_PROMPT, render_guidance_slide
 from v23_personalized_visual_builder import build_personalized_visual_plan
+from v23_runtime_asset_catalog import RuntimeAssetCatalog
 
 
 DEFAULT_EVENT = ROOT / "data" / "v23" / "events" / "valid_forecast_and_hydrology.json"
@@ -35,6 +37,11 @@ FPS = 16
 PERSONALIZED_VISUAL_END = 960
 FRAME_END = 1280
 PROGRESS_PATH = Path(os.getenv("FLOOD_PROGRESS_FILE", DEFAULT_OUTPUT_ROOT / "progress.json"))
+
+SCRIPT_RAG_SYSTEM_PROMPT = """당신은 농업인 호우 안내 대본의 근거 선택기다.
+사용자·필지·예보 수치는 이벤트 데이터만 사용한다. 행동요령은 제공된 RAG 검색 결과에서 문맥에 맞는 문구를 우선 선택한다.
+검색 근거에 없는 새 수치, 기관 지시, 대피소 운영 여부를 만들지 않는다. 비가 시작된 뒤 위험지역 점검을 권하지 않는다.
+짧고 명확한 존댓말 명령형으로 다듬되 의미를 바꾸지 않고, 선택한 문구의 source_id와 page_number를 결과에 남긴다."""
 
 
 class StoryState(TypedDict, total=False):
@@ -91,6 +98,10 @@ def safe_run_id(event: Dict[str, Any]) -> str:
     return f"V23-{slug(event['event_id'])}-{suffix}"
 
 
+def output_field_id(event: Dict[str, Any], field: Dict[str, Any]) -> str:
+    return event.get("metadata", {}).get("source_farmland_id") or field["field_id"]
+
+
 def segment(identifier: str, start: int, end: int, title: str, subtitle: str, narration: str, visual_key: str) -> Dict[str, Any]:
     return {
         "id": identifier,
@@ -101,7 +112,7 @@ def segment(identifier: str, start: int, end: int, title: str, subtitle: str, na
         "subtitle": subtitle,
         "narration": narration,
         "visual_key": visual_key,
-        "visual_type": "dynamic_video" if end <= PERSONALIZED_VISUAL_END else "information_card",
+        "visual_type": "dynamic_video" if visual_key == "personalized_visual" else "information_card",
     }
 
 
@@ -113,62 +124,110 @@ def build_segments(event: Dict[str, Any], field: Dict[str, Any]) -> List[Dict[st
     rain = float(forecast["rain_24h_mm"])
     level = float(hydro["water_level_m"])
     overlap = float(metrics["official_flood_intersection_percent"])
-    field_name = field["display_name"]
+    region_visual = RuntimeAssetCatalog.load().select_region(event.get("metadata", {}).get("address"))
+    is_sokrisan_shared = bool(region_visual and region_visual["region_id"] == "KR-CHUNGBUK-BOEUN-SOKRISAN")
+    field_name = "속리산면 등록 농경지" if is_sokrisan_shared else field["display_name"]
     shelter_name = shelter["name"]
     distance_km = float(shelter["distance_m"]) / 1000.0
-    return [
+    flood_narration = (
+        "속리산면 등록 농경지는 집중호우 때 침수 위험이 있습니다. 비가 오기 전에 배수로와 막힌 곳을 확인하고 농기계를 안전한 장소로 옮기십시오."
+        if is_sokrisan_shared else
+        f"환경부 100년 빈도 홍수위험 범위와 등록 농경지 경계는 약 {overlap:.1f} 퍼센트 겹칩니다. 비가 오기 전에 배수로와 막힌 곳을 확인하고 농기계를 안전한 장소로 옮기십시오."
+    )
+    shelter_narration = (
+        "이동이 필요하면 안전디딤돌이나 보은군의 공식 안내에서 가까운 재해구호시설의 개방 여부와 도로 통제 상황을 먼저 확인하십시오."
+        if is_sokrisan_shared else
+        f"화면에 표시된 곳은 등록 농경지에서 약 {distance_km:.1f} 킬로미터 떨어진 {shelter_name}입니다. 이동이 필요하면 비가 오기 전에 시설 개방 여부와 도로 통제 상황을 확인하십시오."
+    )
+    segments = [
         segment(
-            "regional_flood", 1, 180,
+            "regional_flood", 1, 160,
             "등록 농경지 호우 대비 안내", f"24시간 예상 강수 {rain:.0f}mm",
             f"{field_name} 주변 안내입니다. 기상예보에는 24시간 {rain:.0f} 밀리미터의 비가 예상됩니다. 화면에서 하천 주변 물의 확산 범위를 확인하십시오.",
             "personalized_visual",
         ),
         segment(
-            "field_focus", 181, 360,
+            "field_focus", 161, 320,
             "등록 농경지 위치", "범람 이전 상태에서 농경지로 이동",
             f"화면이 범람 이전으로 돌아간 뒤 등록 농경지를 확대합니다. 관측소 수위는 {level:.2f} 미터로 전달됐으며, 계속 갱신되는 기상청과 홍수통제소 정보를 함께 확인해야 합니다.",
             "personalized_visual",
         ),
         segment(
-            "field_flood", 361, 560,
-            "농경지 침수 위험", f"공식 위험범위 중첩 {overlap:.1f}%",
-            f"환경부 100년 빈도 홍수위험 범위와 등록 농경지 경계는 약 {overlap:.1f} 퍼센트 겹칩니다. 비가 오기 전에 배수로와 막힌 곳을 확인하고 농기계를 안전한 장소로 옮기십시오.",
+            "field_flood", 321, 480,
+            "농경지 침수 위험", "집중호우 침수 위험" if is_sokrisan_shared else f"공식 위험범위 중첩 {overlap:.1f}%",
+            flood_narration,
             "personalized_visual",
         ),
         segment(
-            "field_final_state", 561, 719,
+            "field_final_state", 481, 640,
             "비가 시작되기 전 조치", "농기계 이동 · 시설물 고정",
             "비닐하우스와 지주시설의 결박 상태를 확인하고 이동 가능한 물건은 높은 곳으로 옮기십시오. 안전조치는 반드시 비가 시작되기 전에 마쳐야 합니다.",
             "personalized_visual",
         ),
         segment(
-            "shelter_location", 720, 960,
-            "가까운 재해구호시설", shelter_name,
-            f"화면에 표시된 곳은 등록 농경지에서 약 {distance_km:.1f} 킬로미터 떨어진 {shelter_name}입니다. 이동이 필요하면 비가 오기 전에 시설 개방 여부와 도로 통제 상황을 확인하십시오.",
+            "shelter_location", 641, 800,
+            "가까운 재해구호시설", "공식 개방 정보 확인" if is_sokrisan_shared else shelter_name,
+            shelter_narration,
             "personalized_visual",
         ),
         segment(
-            "action_card", 961, 1120,
-            "비가 오기 전에 마치십시오", "배수로 · 농기계 · 시설물 점검",
-            "배수로 확인, 농기계 이동, 시설물 고정은 비가 오기 전에 마치십시오. 비가 시작된 뒤에는 논둑이나 물꼬를 확인하러 나가지 마십시오.",
-            "action_card",
+            "before_rain_card", 801, 960,
+            "비 오기 전", "배수로 · 농기계 · 시설물 점검",
+            "배수로 확인, 농기계 이동, 시설물 고정은 비가 오기 전에 마치십시오.",
+            "before_rain_card",
         ),
         segment(
-            "official_information", 1121, 1280,
-            "공식 재난 안내 확인", "안전디딤돌 · 기상청 · 지자체 · 119",
-            "비가 시작되면 논밭과 하천변에 접근하지 마십시오. 기상청과 지자체 안내를 계속 확인하고, 도로 침수나 긴급 상황은 일일구에 신고하십시오.",
-            "source_card",
+            "during_rain_card", 961, 1120,
+            "비 오는 중", "논밭 · 하천 · 배수로 접근 금지",
+            "논 물꼬 조정, 용·배수로 점검 등 야외활동은 하지 맙시다.",
+            "during_rain_card",
+        ),
+        segment(
+            "after_rain_card", 1121, 1280,
+            "비 그친 후", "안전 확인 · 피해 기록",
+            "비가 그친 뒤에도 바로 농경지에 들어가지 마십시오. 물이 빠지고 주변이 안전한지 확인한 뒤 피해 상황을 사진으로 남기십시오.",
+            "after_rain_card",
         ),
     ]
+    retrieval_specs = {
+        "field_flood": ("농경지 침수 예방 배수로 농기계 비 오기 전", ["농경지", "배수로", "농기계", "점검"]),
+        "field_final_state": ("비닐하우스 농업시설물 지주 결박 고정 강풍 호우 사전", ["시설", "지주", "고정", "비닐하우스"]),
+        "before_rain_card": ("호우 전 농경지 배수로 농기계 시설물 미리 점검 이동", ["배수로", "농기계", "시설물", "미리"]),
+        "during_rain_card": ("호우 중 논둑 물꼬 배수로 야외활동 접근 금지", ["논둑", "물꼬", "배수로", "야외활동"]),
+        "after_rain_card": ("호우가 지나간 후 농경지 안전 확인 피해 사진 기록", ["지나간 후", "안전", "피해", "사진"]),
+    }
+    for item in segments:
+        spec = retrieval_specs.get(item["id"])
+        if not spec:
+            item["rag"] = {"query": None, "selected_phrase": None, "citations": []}
+            continue
+        query, keywords = spec
+        results = retrieve_guidance(query, limit=5)
+        item["rag"] = {
+            "query": query,
+            "selected_phrase": select_source_sentence(results, keywords=keywords, fallback=item["narration"]),
+            "citations": compact_citations(results),
+        }
+        if results and item["id"] == "during_rain_card":
+            item["narration"] = item["rag"]["selected_phrase"]
+    return segments
 
 
 def script_agent(state: StoryState) -> Dict[str, Any]:
     segments = build_segments(state["event"], state["field"])
+    retrieval_path = Path(state["run_dir"]) / "rag_retrieval.json"
+    dump_retrieval(retrieval_path, {
+        "system_prompt": SCRIPT_RAG_SYSTEM_PROMPT,
+        "segments": [{"segment_id": item["id"], **item["rag"]} for item in segments],
+    })
+    citation_count = sum(len(item["rag"]["citations"]) for item in segments)
     return {
         "segments": segments,
         "trace": traced(state, "script_agent", {
-            "provider": "v23_event_and_field_policy_template",
+            "provider": "v23_event_plus_sqlite_fts_rag",
             "segment_count": len(segments),
+            "rag_citation_count": citation_count,
+            "rag_retrieval": str(retrieval_path),
             "tts_starts_at_first_frame": segments[0]["start_frame"] == 1,
             "duration_seconds": FRAME_END / FPS,
         }),
@@ -224,27 +283,22 @@ async def tts_agent(state: StoryState) -> Dict[str, Any]:
     return {"tts_assets": assets, "tts_meta": meta, "trace": traced(state, "tts_agent", meta)}
 
 
-def font(size: int):
-    return ImageFont.truetype(str(font_path()), size=size)
-
-
-def information_card(path: Path, title: str, subtitle: str, lines: List[str], accent: str) -> None:
-    image = Image.new("RGB", (1280, 720), "#06131F")
-    draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((54, 46, 1226, 674), radius=34, fill="#10283A", outline=accent, width=4)
-    draw.text((92, 86), title, font=font(48), fill="#FFFFFF")
-    draw.text((94, 158), subtitle, font=font(31), fill=accent)
-    y = 250
-    for line in lines:
-        draw.rounded_rectangle((92, y - 14, 1188, y + 70), radius=18, fill="#19394D")
-        draw.text((124, y + 8), line, font=font(29), fill="#FFFFFF")
-        y += 112
-    image.save(path)
-
-
 def ensure_personalized_visual(state: StoryState) -> Dict[str, Any]:
     event = state["event"]
     field = state["field"]
+    region_visual = RuntimeAssetCatalog.load().select_region(event.get("metadata", {}).get("address"))
+    if region_visual:
+        path = Path(region_visual["asset"]["path"])
+        if not path.is_file():
+            raise RuntimeError(f"Region shared digital twin is missing: {path}")
+        return {
+            "status": "ready",
+            "video": str(path),
+            "report": None,
+            "reused": True,
+            "visual_scope": "region_shared",
+            **{key: region_visual[key] for key in ("region_id", "source_frames", "source_fps", "source_duration_seconds", "timeline_policy")},
+        }
     run_dir = PERSONALIZED_ROOT / slug(event["event_id"])
     plan_path = run_dir / "composition_plan_v23.json"
     report_path = run_dir / "composition_report_v23.json"
@@ -285,19 +339,35 @@ def video_production_agent(state: StoryState) -> Dict[str, Any]:
     visuals_dir = run_dir / "visuals"
     visuals_dir.mkdir(parents=True, exist_ok=True)
     visual = ensure_personalized_visual(state)
-    action_card = visuals_dir / "action_card.png"
-    source_card = visuals_dir / "source_card.png"
+    delivery_field_id = output_field_id(state["event"], state["field"])
+    before_card = visuals_dir / "01_before_rain.png"
+    during_card = visuals_dir / "02_during_rain.png"
+    after_card = visuals_dir / "03_after_rain.png"
     if state["mode"] != "plan":
-        field = state["field"]
-        information_card(
-            action_card, "비가 오기 전에 마치십시오", field["display_name"],
-            ["배수로와 막힌 곳을 확인합니다", "농기계를 안전한 곳으로 옮깁니다", "시설물과 비닐하우스를 고정합니다"], "#FFB84D",
+        render_guidance_slide(
+            before_card, phase="before", title="미리 준비하세요",
+            summary="알림을 받으면, 비가 오기 전에 끝내세요.",
+            actions=["배수로·물꼬 정리", "농기계는 높은 곳으로 이동", "시설물 점검·보강"],
+            icons=["💧", "🚜", "🔧"], banner="비가 오기 전 준비가 가장 중요합니다.",
         )
-        information_card(
-            source_card, "공식 재난 안내를 확인하십시오", field["shelter"]["name"],
-            ["비가 시작되면 논밭과 하천변에 가지 않습니다", "침수된 도로를 건너지 않습니다", "긴급 상황은 119에 신고합니다"], "#58D2FF",
+        render_guidance_slide(
+            during_card, phase="during", title="논·밭에 가지 마세요",
+            summary="농작물이 걱정돼도 지금은 사람이 먼저입니다.",
+            actions=["논둑·물꼬 확인 금지", "하천·배수로 접근 금지", "위험하면 즉시 대피"],
+            icons=["🚫", "🚫", "🏃"], banner="농작물보다 사람의 안전이 먼저입니다.",
         )
-    visual_assets = {"personalized_visual": visual["video"], "action_card": str(action_card), "source_card": str(source_card)}
+        render_guidance_slide(
+            after_card, phase="after", title="바로 들어가지 마세요",
+            summary="물이 빠지고 주변이 안전한지 먼저 확인하세요.",
+            actions=["주변 안전 먼저 확인", "물이 빠진 뒤 농경지 확인", "피해 사진 남기기"],
+            icons=["👀", "🌊", "📷"], banner="준비하기 · 가지 않기 · 안전 확인하기",
+        )
+    visual_assets = {
+        "personalized_visual": visual["video"],
+        "before_rain_card": str(before_card),
+        "during_rain_card": str(during_card),
+        "after_rain_card": str(after_card),
+    }
     enriched = []
     subtitles: List[str] = []
     for index, item in enumerate(state["segments"], start=1):
@@ -311,6 +381,7 @@ def video_production_agent(state: StoryState) -> Dict[str, Any]:
         "mode": state["mode"],
         "event_id": state["event"]["event_id"],
         "field_id": state["field"]["field_id"],
+        "source_farmland_id": state["event"].get("metadata", {}).get("source_farmland_id"),
         "user_id": state["event"]["user_id"],
         "scenario_id": state["event"]["scenario_id"],
         "fps": FPS,
@@ -320,12 +391,13 @@ def video_production_agent(state: StoryState) -> Dict[str, Any]:
         "personalized_visual_end_frame": PERSONALIZED_VISUAL_END,
         "duration_seconds": FRAME_END / FPS,
         "visual_mode": "v23_field_specific_cached_visual_plus_information_cards",
+        "slide_design_prompt": SLIDE_DESIGN_SYSTEM_PROMPT,
         "base_render_policy": "cached_personalized_visual_reuse_no_3d_rerender",
         "personalized_visual": visual,
         "segments": enriched,
         "tts_meta": state["tts_meta"],
-        "output_video": str(run_dir / f"{slug(state['field']['field_id'])}_guidance_v23.mp4"),
-        "output_blend": str(run_dir / f"{slug(state['field']['field_id'])}_guidance_v23_composition.blend"),
+        "output_video": str(run_dir / f"{slug(delivery_field_id)}_guidance_v23.mp4"),
+        "output_blend": str(run_dir / f"{slug(delivery_field_id)}_guidance_v23_composition.blend"),
     }
     write_json(run_dir / "guidance_manifest.json", manifest)
     (run_dir / "narration_script.txt").write_text("\n\n".join(f"[{item['title']}]\n{item['narration']}" for item in enriched), encoding="utf-8")

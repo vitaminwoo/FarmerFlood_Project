@@ -54,6 +54,20 @@ class RuntimeAssetCatalog:
             "shelter_overlay": self._item(self.document["shared"]["shelter_overlay"]),
         }
 
+    def select_region(self, address: str | None) -> Dict[str, Any] | None:
+        value = address or ""
+        for region_id, selection in self.document.get("region_shared_visuals", {}).items():
+            if all(token in value for token in selection.get("address_tokens", [])):
+                return {
+                    "region_id": region_id,
+                    "asset": self._item(selection["asset"]),
+                    "source_frames": selection["source_frames"],
+                    "source_fps": selection["source_fps"],
+                    "source_duration_seconds": selection["source_duration_seconds"],
+                    "timeline_policy": selection["timeline_policy"],
+                }
+        return None
+
     def verify(self, selection: Dict[str, Any] | None = None) -> Dict[str, Any]:
         items = selection.values() if selection else (self._item(item["asset_id"]) for item in self.document["assets"])
         results = []
@@ -67,4 +81,3 @@ class RuntimeAssetCatalog:
             }
             results.append({"asset_id": item["asset_id"], "path": str(path), "checks": checks, "status": "verified" if all(checks.values()) else "invalid"})
         return {"items": results, "all_verified": all(item["status"] == "verified" for item in results)}
-

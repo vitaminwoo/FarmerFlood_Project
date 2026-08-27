@@ -29,6 +29,16 @@ class RuntimeAssetCatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unsupported"):
             self.catalog.select("OSONG-FIELD-DEMO-001", "severe")
 
+    def test_sokrisan_subscribers_share_the_region_base_video(self):
+        selected = self.catalog.select_region("충청북도 보은군 속리산면 백현리")
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected["region_id"], "KR-CHUNGBUK-BOEUN-SOKRISAN")
+        self.assertTrue(Path(selected["asset"]["path"]).is_file())
+        self.assertEqual(selected["timeline_policy"], "hold_last_frame_to_60_seconds")
+
+    def test_other_regions_do_not_select_sokrisan_video(self):
+        self.assertIsNone(self.catalog.select_region("충청북도 청주시 강내면"))
+
 
 if __name__ == "__main__":
     unittest.main()

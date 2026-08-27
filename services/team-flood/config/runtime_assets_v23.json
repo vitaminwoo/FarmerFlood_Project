@@ -15,7 +15,8 @@
     {"asset_id": "field_002_flood", "relative_path": "flood_layers/field_002_focus_flood.mov", "bytes": 664107104, "sha256": "6f6a4ca3d03aca71e74a0a817224ef029d80998516ff2ef19144a19785b66c6d"},
     {"asset_id": "field_003_flood", "relative_path": "flood_layers/field_003_focus_flood.mov", "bytes": 1265054335, "sha256": "06c6414d7fae2bc67a9ce7a7e5918f4af72fe67348f8dd83ac9387bf878a48ab"},
     {"asset_id": "shared_shelter_flood", "relative_path": "flood_layers/shared_shelter_hold.mov", "bytes": 27076825, "sha256": "7c4d5caf9029a816f26c7b179b596f3eb63dc66a31f65d72d0c62bbf097d4a75"},
-    {"asset_id": "shared_shelter_overlay", "relative_path": "shelter/shared_shelter_overlay_rgba.mov", "bytes": 30887247, "sha256": "8eb4b3758e851e0988fc6acb3b2d8fe30bb0f9792b36f7af99f9a6be0d0a4814"}
+    {"asset_id": "shared_shelter_overlay", "relative_path": "shelter/shared_shelter_overlay_rgba.mov", "bytes": 30887247, "sha256": "8eb4b3758e851e0988fc6acb3b2d8fe30bb0f9792b36f7af99f9a6be0d0a4814"},
+    {"asset_id": "sokrisan_region_digital_twin_base", "relative_path": "regions/sokrisan/sokrisan_region_digital_twin_base_v23.mp4", "bytes": 10066305, "sha256": "0aa2188659c4b8808578ad99764e8aeba4efd523befe877dc3e05c553bf89269"}
   ],
   "selection_by_field_id": {
     "OSONG-FIELD-DEMO-001": {"field_background": "field_001_background", "field_overlay": "field_001_overlay", "field_flood": "field_001_flood"},
@@ -26,5 +27,15 @@
     "common_background": "common_background",
     "shelter_flood": "shared_shelter_flood",
     "shelter_overlay": "shared_shelter_overlay"
+  },
+  "region_shared_visuals": {
+    "KR-CHUNGBUK-BOEUN-SOKRISAN": {
+      "asset": "sokrisan_region_digital_twin_base",
+      "address_tokens": ["충청북도", "보은군", "속리산면"],
+      "source_frames": 1104,
+      "source_fps": 24,
+      "source_duration_seconds": 46.0,
+      "timeline_policy": "hold_last_frame_to_60_seconds"
+    }
   }
 }
