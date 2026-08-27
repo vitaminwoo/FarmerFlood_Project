@@ -150,9 +150,11 @@ def get_workflow_detail(job_id: str):
             "updated_at": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat() if path.is_file() else None,
         }
     created = datetime.fromisoformat(job["created_at"])
+    terminal = job["status"] in {"DONE", "FAILED"}
+    elapsed_end = datetime.fromisoformat(job["updated_at"]) if terminal else datetime.now(timezone.utc)
     return {
         **public_job(job),
-        "elapsed_seconds": max(0, int((datetime.now(timezone.utc) - created).total_seconds())),
+        "elapsed_seconds": max(0, int((elapsed_end - created).total_seconds())),
         "active_process": {"name": "Python workflow", "running": process is not None and process.poll() is None},
         "progress_detail": job.get("progress_detail", {}),
         "cache": job.get("cache", {}),
@@ -451,7 +453,7 @@ def resolve_log_path(job: dict, source: str) -> Path:
         if logs:
             if source == "composition":
                 return logs[0] / "final_composition.log"
-            if source == "personalized_visual":
+            if source in {"base_render", "personalized_visual"}:
                 return logs[0] / "personalized_visual_composition.log"
     relative = log_sources().get(source)
     return job_dir / relative if relative is not None else job_dir / "unavailable.log"
